@@ -10,7 +10,11 @@ failed transaction rolls the marker back, so a retry processes the message again
 It works with SQLAlchemy's asyncio extension on PostgreSQL. It stores no payload, runs no worker,
 and never begins, commits or rolls back a transaction for you.
 
-Work in progress: the package is not released yet.
+```bash
+pip install sqlalchemy-inbox
+```
+
+You also need an async PostgreSQL driver, such as asyncpg.
 
 ## The table
 
