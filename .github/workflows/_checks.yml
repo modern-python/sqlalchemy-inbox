@@ -1,0 +1,124 @@
+name: checks
+
+on:
+  workflow_call: {}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v4
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+      - run: uv python install 3.11
+      - run: uv python pin 3.11
+      - run: just install lint-ci
+
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check local links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --offline
+            --no-progress
+            --remap
+            'https://github\.com/${{ github.repository }}/(?:blob|tree)/main/(.*) file://${{ github.workspace }}/$1'
+            '**/*.md'
+
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+          - "3.14t"
+          - "3.15"
+          - "3.15t"
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: inbox
+          POSTGRES_PASSWORD: inbox
+          POSTGRES_DB: inbox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U inbox"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v4
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+      - run: uv python install ${{ matrix.python-version }}
+      - run: uv python pin ${{ matrix.python-version }}
+      - run: just install
+      - name: Assert the GIL is actually disabled
+        if: endsWith(matrix.python-version, 't')
+        run: uv run --no-sync python -c "import sys, asyncpg, sqlalchemy, sqlalchemy_inbox; assert not sys._is_gil_enabled(), 'GIL re-enabled - a dependency lacks free-threaded support'"
+      - run: just test-ci
+        env:
+          PYTHONDONTWRITEBYTECODE: 1
+          PYTHONUNBUFFERED: 1
+          POSTGRES_DSN: postgresql+asyncpg://inbox:inbox@127.0.0.1:5432/inbox
+
+  floors:
+    # Installs the declared floors on each Python, against the oldest supported PostgreSQL.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: inbox
+          POSTGRES_PASSWORD: inbox
+          POSTGRES_DB: inbox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U inbox"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+      - run: uv python install ${{ matrix.python-version }}
+      - run: uv python pin ${{ matrix.python-version }}
+      - run: uv venv
+      - if: matrix.python-version == '3.11'
+        run: uv pip compile pyproject.toml --no-deps --resolution lowest-direct -o floors.txt
+      - if: matrix.python-version != '3.11'
+        run: uv pip compile pyproject.toml --resolution lowest-direct --no-build -o floors.txt
+      - run: uv pip install -r pyproject.toml --group dev --constraints floors.txt --no-build
+      - run: uv run --no-sync pytest . --no-cov
+        env:
+          PYTHONDONTWRITEBYTECODE: 1
+          PYTHONUNBUFFERED: 1
+          POSTGRES_DSN: postgresql+asyncpg://inbox:inbox@127.0.0.1:5432/inbox
