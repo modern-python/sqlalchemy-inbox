@@ -1,0 +1,29 @@
+services:
+  application:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    restart: always
+    volumes:
+      - .:/code
+      - /code/.venv
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - POSTGRES_DSN=postgresql+asyncpg://inbox:inbox@postgres:5432/inbox
+    stdin_open: true
+    tty: true
+
+  postgres:
+    image: postgres:17
+    restart: always
+    environment:
+      - POSTGRES_USER=inbox
+      - POSTGRES_PASSWORD=inbox
+      - POSTGRES_DB=inbox
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inbox -d inbox"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
