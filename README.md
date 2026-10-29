@@ -159,8 +159,9 @@ What it does not guarantee:
 - Exactly-once delivery from end to end. The guarantee covers database effects for one key while
   its marker is retained.
 - Effects outside PostgreSQL. An HTTP call made in a transaction that later rolls back has already
-  happened, and the retry makes it again. Send those through a transactional outbox, or make the
-  receiving side idempotent.
+  happened, and the retry makes it again. Send those through a transactional outbox such as
+  [`faststream-outbox`](https://github.com/modern-python/faststream-outbox), or make the receiving
+  side idempotent.
 - Anything after the marker is deleted. Once cleanup removes it, the same key counts as a new
   message.
 - Under REPEATABLE READ or SERIALIZABLE, a conflicting `claim` raises a serialization failure
