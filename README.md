@@ -7,8 +7,9 @@
 transaction as the consumer's own writes. A redelivered message finds its marker and is skipped. A
 failed transaction rolls the marker back, so a retry processes the message again.
 
-It works with SQLAlchemy's asyncio extension on PostgreSQL. It stores no payload, runs no worker,
-and never begins, commits or rolls back a transaction for you.
+It works with SQLAlchemy's asyncio extension on PostgreSQL. It stores no payload and runs no worker.
+`Inbox` never begins, commits or rolls back a transaction for you. Only `InboxCleaner` does that, on
+its own connections.
 
 ```bash
 pip install sqlalchemy-inbox
@@ -92,31 +93,38 @@ or fall back to Kafka offsets.
 
 ## Cleaning up
 
-Markers are kept until you delete them. Take one cutoff per cleanup run from the database clock,
-then delete in batches, one transaction per batch, until a batch deletes nothing:
+Markers are kept until you delete them. Run `InboxCleaner` from a cron job:
 
 ```python
-@dataclasses.dataclass(kw_only=True, frozen=True, slots=True)
-class CleanupInboxUseCase:
-    transaction: Transaction
-    inbox: Inbox
+import asyncio
+import datetime
 
-    async def __call__(self, *, retention: datetime.timedelta, batch_size: int) -> None:
-        async with self.transaction:
-            cutoff = await self.inbox.cleanup_cutoff(retention=retention)
-        while await self._delete_batch(cutoff=cutoff, limit=batch_size):
-            pass
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy_inbox import InboxCleaner
 
-    @postgres_retry
-    async def _delete_batch(self, *, cutoff: datetime.datetime, limit: int) -> int:
-        async with self.transaction:
-            deleted = await self.inbox.delete_expired_batch(cutoff=cutoff, limit=limit)
-            await self.transaction.commit()
-        return deleted
+
+async def main() -> None:
+    engine = create_async_engine(DATABASE_DSN)
+    try:
+        cleaner = InboxCleaner(engine=engine, table=INBOX_TABLE, retention=datetime.timedelta(days=7))
+        await cleaner.cleanup()
+    finally:
+        await engine.dispose()
+
+
+asyncio.run(main())
 ```
 
-Batches that committed stay deleted if a later batch fails, and the error reaches your scheduler.
-Cleanup skips markers that another transaction holds, so it never waits on a consumer.
+A cleanup run takes one cutoff from the database clock, `now()` minus `retention`, and deletes the
+markers older than it in batches of `batch_size` (1000 by default), one transaction per batch, until
+a batch deletes nothing. `cleanup()` returns a `CleanupResult` with the `cutoff` and the
+`deleted_count`. It logs each batch at DEBUG and the total at INFO to the `sqlalchemy_inbox` logger.
+
+Batches that committed stay deleted if a later batch fails or the task is cancelled, and the error
+reaches your cron job. The cleaner doesn't retry: the next run deletes what is left. It skips markers
+that another transaction holds, so it never waits on a consumer, and two runs at once share the
+work. Each batch runs at READ COMMITTED whatever the engine's default. The engine stays yours to
+dispose.
 
 ## Guarantees
 
