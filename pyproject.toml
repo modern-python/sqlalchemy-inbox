@@ -87,6 +87,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
 [project.urls]
+Homepage = "https://modern-python.org"
 Repository = "https://github.com/modern-python/sqlalchemy-inbox"
 Issues = "https://github.com/modern-python/sqlalchemy-inbox/issues"
 Changelog = "https://github.com/modern-python/sqlalchemy-inbox/releases"
