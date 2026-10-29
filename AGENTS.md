@@ -22,6 +22,8 @@ The things it does not say:
 
 - `Inbox` never commits, rolls back, begins, or opens a session or connection. Transaction
   ownership stays with the caller. Any new method must keep that.
+- `InboxCleaner` is the only code that begins and commits, and only on connections it opens from
+  the caller's engine. It never takes a caller's session and never disposes the engine.
 - `Inbox.claim` requires an open transaction on its session. That is what turns a wrongly wired
   second session into an error instead of a marker that never commits.
 - Concurrency claims are proven only by tests on separate connections, never one shared test

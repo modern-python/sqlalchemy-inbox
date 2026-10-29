@@ -3,10 +3,10 @@ import datetime as dt
 
 from db_retry import Transaction, postgres_retry
 from sqlalchemy import Table, func, insert, select, text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-from sqlalchemy_inbox import Inbox
-from tests.conftest import Tables, count_rows
+from sqlalchemy_inbox import Inbox, InboxCleaner
+from tests.conftest import PG_DSN, Tables, count_rows
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, slots=True)
@@ -83,28 +83,7 @@ async def test_readme_processing_use_case_skips_a_duplicate_and_handles_the_next
     assert await count_rows(pg_engine, tables.business) == 2
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, slots=True)
-class CleanupInboxUseCase:
-    transaction: Transaction
-    inbox: Inbox
-
-    async def __call__(self, *, retention: dt.timedelta, batch_size: int) -> None:
-        async with self.transaction:
-            cutoff = await self.inbox.cleanup_cutoff(retention=retention)
-        while await self._delete_batch(cutoff=cutoff, limit=batch_size):
-            pass
-
-    @postgres_retry
-    async def _delete_batch(self, *, cutoff: dt.datetime, limit: int) -> int:
-        async with self.transaction:
-            deleted = await self.inbox.delete_expired_batch(cutoff=cutoff, limit=limit)
-            await self.transaction.commit()
-        return deleted
-
-
-async def test_readme_cleanup_use_case_deletes_every_expired_marker(
-    pg_engine: AsyncEngine, tables: Tables, session_maker: async_sessionmaker[AsyncSession]
-) -> None:
+async def test_readme_cleanup_cron_job_deletes_every_expired_marker(pg_engine: AsyncEngine, tables: Tables) -> None:
     async with pg_engine.begin() as conn:
         for index in range(5):
             await conn.execute(
@@ -114,9 +93,12 @@ async def test_readme_cleanup_use_case_deletes_every_expired_marker(
             )
         await conn.execute(insert(tables.inbox).values(scope="s", message_id="recent"))
 
-    session = session_maker()
-    use_case = CleanupInboxUseCase(transaction=Transaction(session=session), inbox=Inbox(session, tables.inbox))
-    await use_case(retention=dt.timedelta(hours=1), batch_size=2)
+    engine = create_async_engine(PG_DSN)
+    try:
+        cleaner = InboxCleaner(engine=engine, table=tables.inbox, retention=dt.timedelta(hours=1))
+        await cleaner.cleanup()
+    finally:
+        await engine.dispose()
 
     async with pg_engine.connect() as conn:
         remaining = list((await conn.execute(select(tables.inbox.c.message_id))).scalars())

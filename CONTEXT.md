@@ -36,3 +36,7 @@ _Avoid_: TTL (nothing expires on its own; cleanup deletes)
 **Cutoff**:
 The database timestamp, taken once per cleanup run, before which markers are deleted.
 _Avoid_: deadline, expiry time
+
+**Cleanup run**:
+One pass that takes a cutoff and deletes the markers older than it, batch by batch.
+_Avoid_: vacuum (Postgres VACUUM is something else), purge, sweep, expiry

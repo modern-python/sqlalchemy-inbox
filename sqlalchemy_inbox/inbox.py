@@ -1,6 +1,4 @@
-import datetime as dt
-
-from sqlalchemy import Table, delete, func, select, tuple_
+from sqlalchemy import Table
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
@@ -51,34 +49,6 @@ class Inbox:
         )
         result = await self._session.execute(statement)
         return result.first() is not None
-
-    async def cleanup_cutoff(self, *, retention: dt.timedelta) -> dt.datetime:
-        """Return the database's ``now()`` minus *retention*: take it once per cleanup run."""
-        if retention <= dt.timedelta(0):
-            msg = f"retention must be positive (got {retention})"
-            raise ValueError(msg)
-        self._require_transaction("cleanup_cutoff")
-        result = await self._session.execute(select(func.now() - retention))
-        return result.scalar_one()
-
-    async def delete_expired_batch(self, *, cutoff: dt.datetime, limit: int) -> int:
-        """Delete up to *limit* markers older than *cutoff*, skipping rows other transactions hold.
-
-        Returns the number deleted; a run is done when a batch returns 0.
-        """
-        if limit < 1:
-            msg = f"limit must be positive (got {limit})"
-            raise ValueError(msg)
-        self._require_transaction("delete_expired_batch")
-        key = tuple_(self._table.c.scope, self._table.c.message_id)
-        expired = (
-            select(self._table.c.scope, self._table.c.message_id)
-            .where(self._table.c.processed_at < cutoff)
-            .limit(limit)
-            .with_for_update(skip_locked=True)
-        )
-        result = await self._session.execute(delete(self._table).where(key.in_(expired)).returning(self._table.c.scope))
-        return len(result.all())
 
     def _require_transaction(self, method: str) -> None:
         if not self._session.in_transaction():
