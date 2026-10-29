@@ -39,3 +39,17 @@ Every link in `README.md` must be absolute: `https://github.com/modern-python/sq
 - **Never use local/inline imports**, tests included. `ruff` catches them.
 - Annotate every function argument.
 - Docstrings: public API documents the contract; internal helpers get a one-line contract at most.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub issues on `modern-python/sqlalchemy-inbox`, via `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, each label string equal to its name. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.

@@ -1,7 +1,21 @@
-# sqlalchemy-inbox
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"  srcset="https://raw.githubusercontent.com/modern-python/.github/main/brand/projects/sqlalchemy-inbox/lockup-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/modern-python/.github/main/brand/projects/sqlalchemy-inbox/lockup-light.svg">
+    <img alt="sqlalchemy-inbox" src="https://raw.githubusercontent.com/modern-python/.github/main/brand/projects/sqlalchemy-inbox/lockup.png" width="420">
+  </picture>
+</p>
 
+[![PyPI version](https://img.shields.io/pypi/v/sqlalchemy-inbox.svg)](https://pypi.org/project/sqlalchemy-inbox/)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/sqlalchemy-inbox.svg)](https://pypi.org/project/sqlalchemy-inbox/)
+[![Downloads](https://static.pepy.tech/badge/sqlalchemy-inbox/month)](https://pepy.tech/projects/sqlalchemy-inbox)
+[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/modern-python/sqlalchemy-inbox/actions/workflows/ci.yml)
 [![CI](https://github.com/modern-python/sqlalchemy-inbox/actions/workflows/ci.yml/badge.svg)](https://github.com/modern-python/sqlalchemy-inbox/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/modern-python/sqlalchemy-inbox.svg)](https://github.com/modern-python/sqlalchemy-inbox/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/modern-python/sqlalchemy-inbox)](https://github.com/modern-python/sqlalchemy-inbox/stargazers)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty)
 
 `sqlalchemy-inbox` records which messages a consumer has processed, in the same PostgreSQL
 transaction as the consumer's own writes. A redelivered message finds its marker and is skipped. A
@@ -191,4 +205,10 @@ can't tell whether the commit landed.
 
 ## Links
 
+- [PyPI](https://pypi.org/project/sqlalchemy-inbox)
 - [License](https://github.com/modern-python/sqlalchemy-inbox/blob/main/LICENSE)
+
+## Part of `modern-python`
+
+Browse the full list of templates and libraries in
+[`modern-python`](https://github.com/modern-python); see the org profile for the categorized index.
